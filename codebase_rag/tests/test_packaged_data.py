@@ -21,7 +21,7 @@ from pathlib import Path, PurePosixPath
 import pytest
 
 from codebase_rag import constants as cs
-from codebase_rag import parser_loader
+from codebase_rag import graph_view, parser_loader
 from codebase_rag.analyzers import ast_grep_analyzer
 from codebase_rag.parsers import ast_grep_tier
 from codebase_rag.parsers.csharp_frontend import frontend as csharp_frontend
@@ -91,6 +91,7 @@ def _runtime_data_files() -> list[Path]:
         *ast_grep_tier._PATTERNS_DIR.glob("*.yaml"),
         *ast_grep_analyzer._RULES_DIR.glob("*/*.yaml"),
         *highlights.glob("*.scm"),
+        graph_view._TEMPLATE_PATH,
     ]
     return sorted({path.resolve() for path in files})
 
@@ -111,7 +112,7 @@ def test_the_runtime_data_walk_finds_every_loader() -> None:
     # An empty glob (a renamed directory) would make every check below pass
     # vacuously, so the walk itself must see each kind of file it claims to.
     suffixes = {path.suffix for path in _RUNTIME_DATA}
-    assert {".proto", ".yaml", ".scm", ".go", ".cs", ".java"} <= suffixes
+    assert {".proto", ".yaml", ".scm", ".go", ".cs", ".java", ".html"} <= suffixes
     assert all(path.is_file() for path in _RUNTIME_DATA)
 
 

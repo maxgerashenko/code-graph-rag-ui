@@ -1,0 +1,646 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>__CGR_TITLE__ · code graph</title>
+<style>
+  :root {
+    --bg: #0b1020; --bg-2: #111832; --panel: rgba(17, 24, 50, 0.86); --panel-solid: #121a36;
+    --border: rgba(148, 163, 255, 0.14); --text: #e8ecff; --text-2: #9aa4c7; --text-3: #6b7499;
+    --accent: #7c5cff; --accent-2: #22d3ee; --chip: rgba(124, 92, 255, 0.16); --shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+    --label: #e8ecff; --label-bg: rgba(11, 16, 32, 0.72); --faded: #2a3152; --edge-faded: rgba(80, 90, 130, 0.08);
+    --grid: rgba(124, 92, 255, 0.07);
+  }
+  [data-theme="light"] {
+    --bg: #f5f7ff; --bg-2: #eef1fb; --panel: rgba(255, 255, 255, 0.9); --panel-solid: #ffffff;
+    --border: rgba(30, 41, 99, 0.12); --text: #121735; --text-2: #4b5480; --text-3: #8790b5;
+    --accent: #6d4aff; --accent-2: #0891b2; --chip: rgba(109, 74, 255, 0.1); --shadow: 0 12px 32px rgba(30, 41, 99, 0.14);
+    --label: #121735; --label-bg: rgba(255, 255, 255, 0.8); --faded: #dde2f2; --edge-faded: rgba(120, 130, 170, 0.08);
+    --grid: rgba(109, 74, 255, 0.06);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; overflow: hidden; }
+  body {
+    font: 13px/1.45 Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    color: var(--text);
+    background:
+      radial-gradient(1200px 700px at 15% -10%, rgba(124, 92, 255, 0.22), transparent 60%),
+      radial-gradient(900px 600px at 110% 110%, rgba(34, 211, 238, 0.16), transparent 60%),
+      var(--bg);
+  }
+  #graph {
+    position: fixed; inset: 0;
+    background-image: radial-gradient(var(--grid) 1px, transparent 1px);
+    background-size: 22px 22px;
+  }
+  .glass {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 14px;
+    box-shadow: var(--shadow); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+  }
+  button, select, input { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  .mono { font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; }
+
+  /* Top bar */
+  #topbar { position: fixed; top: 14px; left: 14px; right: 14px; display: flex; gap: 12px; align-items: center; pointer-events: none; z-index: 5; }
+  #topbar > * { pointer-events: auto; }
+  #brand { display: flex; align-items: center; gap: 10px; padding: 9px 14px; min-width: 0; }
+  #brand .logo { width: 26px; height: 26px; border-radius: 8px; flex-shrink: 0;
+    background: conic-gradient(from 200deg, #7c5cff, #22d3ee, #06d6a0, #ffd166, #ff4d9d, #7c5cff); box-shadow: 0 0 18px rgba(124, 92, 255, 0.6); }
+  #brand h1 { font-size: 14px; font-weight: 650; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 32vw; }
+  #brand .sub { color: var(--text-2); font-size: 11.5px; white-space: nowrap; }
+  #search-box { position: relative; flex: 1; max-width: 520px; margin: 0 auto; }
+  #search { width: 100%; padding: 11px 14px 11px 38px; border-radius: 12px; border: 1px solid var(--border);
+    background: var(--panel); backdrop-filter: blur(14px); outline: none; box-shadow: var(--shadow); }
+  #search:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(124, 92, 255, 0.25), var(--shadow); }
+  #search-box .icon { position: absolute; z-index: 1; left: 13px; top: 50%; transform: translateY(-50%); color: var(--text-3); pointer-events: none; }
+  #search-box kbd { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); }
+  kbd { font: 11px ui-monospace, monospace; color: var(--text-2); border: 1px solid var(--border); border-bottom-width: 2px; border-radius: 5px; padding: 1px 6px; background: var(--bg-2); }
+  #results { position: absolute; top: calc(100% + 6px); left: 0; right: 0; max-height: 360px; overflow-y: auto; padding: 6px; display: none; }
+  #results.open { display: block; }
+  .result { display: flex; align-items: center; gap: 9px; padding: 7px 9px; border-radius: 9px; cursor: pointer; }
+  .result:hover, .result.active { background: var(--chip); }
+  .result .name { font-weight: 600; white-space: nowrap; }
+  .result .qn { color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; min-width: 0; }
+  .empty { color: var(--text-3); padding: 10px; }
+  #stats { display: flex; gap: 6px; padding: 6px; }
+  .stat { padding: 4px 10px; border-radius: 9px; background: var(--chip); white-space: nowrap; }
+  .stat b { font-weight: 700; }
+  .stat span { color: var(--text-2); font-size: 11.5px; margin-left: 3px; }
+
+  /* Left: legend */
+  #legend { position: fixed; top: 76px; left: 14px; bottom: 14px; width: 248px; display: flex; flex-direction: column; overflow: hidden; z-index: 4; transition: transform .25s ease; }
+  #legend.collapsed { transform: translateX(calc(-100% - 20px)); }
+  .section { padding: 12px 14px 6px; }
+  .section h2 { font-size: 10.5px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; color: var(--text-3); display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+  .section h2 button { background: none; border: 0; color: var(--accent-2); font-size: 10.5px; letter-spacing: .04em; text-transform: none; font-weight: 600; }
+  .scroll { overflow-y: auto; flex: 1; padding-bottom: 8px; }
+  .toggle { display: flex; align-items: center; gap: 9px; padding: 5px 8px; margin: 0 -8px; border-radius: 8px; cursor: pointer; user-select: none; }
+  .toggle:hover { background: var(--chip); }
+  .toggle.off { opacity: .38; }
+  .toggle .swatch { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; box-shadow: 0 0 10px var(--c); background: var(--c); }
+  .toggle .line { width: 16px; height: 3px; border-radius: 2px; flex-shrink: 0; background: var(--c); }
+  .toggle .lbl { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .toggle .count { color: var(--text-3); font-variant-numeric: tabular-nums; font-size: 11.5px; }
+  .divider { height: 1px; background: var(--border); margin: 6px 14px; }
+
+  /* Right: details */
+  #details { position: fixed; top: 76px; right: 14px; bottom: 14px; width: 340px; display: flex; flex-direction: column; overflow: hidden; z-index: 4;
+    transform: translateX(calc(100% + 20px)); transition: transform .25s ease; }
+  #details.open { transform: none; }
+  #details header { padding: 16px 16px 12px; border-bottom: 1px solid var(--border); position: relative; }
+  #details .close { position: absolute; top: 12px; right: 12px; width: 28px; height: 28px; border-radius: 8px; border: 1px solid var(--border); background: transparent; color: var(--text-2); }
+  .badge { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; letter-spacing: .04em; padding: 3px 9px; border-radius: 999px; color: #0b1020; background: var(--c); }
+  #d-name { font-size: 18px; font-weight: 700; margin: 8px 30px 4px 0; word-break: break-word; }
+  #d-qn { color: var(--text-2); word-break: break-all; }
+  #d-loc { color: var(--accent-2); margin-top: 6px; word-break: break-all; }
+  #d-doc { margin-top: 10px; color: var(--text-2); white-space: pre-wrap; max-height: 120px; overflow-y: auto; border-left: 3px solid var(--accent); padding-left: 10px; }
+  .actions { display: flex; gap: 6px; margin-top: 12px; flex-wrap: wrap; }
+  .btn { border: 1px solid var(--border); background: var(--chip); border-radius: 9px; padding: 6px 11px; font-weight: 600; font-size: 12px; }
+  .btn:hover { border-color: var(--accent); }
+  .btn.primary { background: linear-gradient(135deg, #7c5cff, #22d3ee); color: #fff; border: 0; }
+  .rel-group { margin-bottom: 10px; }
+  .rel-group h3 { font-size: 11px; color: var(--text-2); font-weight: 600; margin: 6px 0 4px; display: flex; gap: 6px; align-items: center; }
+  .rel-group h3 .line { width: 14px; height: 3px; border-radius: 2px; background: var(--c); }
+  .nb { display: flex; align-items: center; gap: 8px; padding: 4px 8px; margin: 0 -8px; border-radius: 7px; cursor: pointer; }
+  .nb:hover { background: var(--chip); }
+  .nb .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--c); flex-shrink: 0; }
+  .nb .n { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .more { color: var(--text-3); font-size: 11.5px; padding: 2px 0 0; }
+
+  /* Bottom toolbar */
+  #toolbar { position: fixed; bottom: 14px; left: 50%; transform: translateX(-50%); display: flex; gap: 4px; padding: 6px; z-index: 5; align-items: center; }
+  #toolbar button, #toolbar select { height: 34px; min-width: 34px; padding: 0 10px; border-radius: 9px; border: 1px solid transparent; background: transparent; color: var(--text); font-weight: 600; font-size: 12px; }
+  #toolbar button:hover, #toolbar select:hover { background: var(--chip); }
+  #toolbar button[aria-pressed="true"] { background: var(--chip); border-color: var(--accent); }
+  #toolbar select option { background: var(--panel-solid); }
+  #toolbar .sep { width: 1px; height: 22px; background: var(--border); margin: 0 4px; }
+
+  #banner { position: fixed; top: 76px; left: 50%; transform: translateX(-50%); padding: 8px 14px; z-index: 6; color: var(--text-2); display: none; max-width: 60vw; text-align: center; }
+  #banner.show { display: block; }
+  #loader { position: fixed; inset: 0; display: grid; place-items: center; z-index: 10; pointer-events: none; transition: opacity .4s; }
+  #loader.done { opacity: 0; }
+  #loader .ring { width: 54px; height: 54px; border-radius: 50%; border: 3px solid var(--border); border-top-color: var(--accent); border-right-color: var(--accent-2); animation: spin 0.9s linear infinite; }
+  #loader p { margin-top: 14px; color: var(--text-2); text-align: center; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  #tip { position: fixed; z-index: 9; pointer-events: none; padding: 7px 10px; border-radius: 9px; font-size: 12px; display: none; max-width: 360px; }
+  #tip .t-name { font-weight: 700; }
+  #tip .t-qn { color: var(--text-2); word-break: break-all; }
+  #error { position: fixed; inset: 0; display: none; place-items: center; z-index: 11; padding: 24px; }
+  #error.show { display: grid; }
+  #error .glass { padding: 22px 26px; max-width: 520px; }
+  #error h2 { font-size: 16px; margin-bottom: 8px; }
+  #error p { color: var(--text-2); }
+  @media (max-width: 860px) {
+    #legend { width: 210px; }
+    #details { width: calc(100vw - 28px); }
+    #stats, #brand .sub { display: none; }
+  }
+</style>
+</head>
+<body>
+<div id="graph" aria-label="Code graph"></div>
+
+<div id="topbar">
+  <div id="brand" class="glass">
+    <div class="logo" aria-hidden="true"></div>
+    <div style="min-width:0">
+      <h1 id="title"></h1>
+      <div class="sub" id="subtitle"></div>
+    </div>
+  </div>
+  <div id="search-box">
+    <svg class="icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+    <input id="search" type="search" placeholder="Search functions, classes, files…" autocomplete="off" spellcheck="false" aria-label="Search the graph">
+    <kbd>/</kbd>
+    <div id="results" class="glass" role="listbox"></div>
+  </div>
+  <div id="stats" class="glass"></div>
+</div>
+
+<aside id="legend" class="glass" aria-label="Filters">
+  <div class="scroll">
+    <div class="section">
+      <h2>Node types <button id="nodes-all" type="button">show all</button></h2>
+      <div id="node-types"></div>
+    </div>
+    <div class="divider"></div>
+    <div class="section">
+      <h2>Relationships <button id="edges-all" type="button">show all</button></h2>
+      <div id="edge-types"></div>
+    </div>
+  </div>
+</aside>
+
+<aside id="details" class="glass" aria-label="Selected node">
+  <header>
+    <button class="close" id="d-close" type="button" aria-label="Close">✕</button>
+    <span class="badge" id="d-badge"></span>
+    <div id="d-name"></div>
+    <div id="d-qn" class="mono"></div>
+    <div id="d-loc" class="mono"></div>
+    <div id="d-doc"></div>
+    <div class="actions">
+      <button class="btn primary" id="d-focus" type="button">Show neighbourhood</button>
+      <button class="btn" id="d-copy" type="button">Copy name</button>
+    </div>
+  </header>
+  <div class="scroll section" id="d-rels"></div>
+</aside>
+
+<div id="banner" class="glass"></div>
+
+<div id="toolbar" class="glass" role="toolbar" aria-label="View controls">
+  <button id="t-legend" type="button" title="Filters (F)" aria-pressed="true">☰ Filters</button>
+  <span class="sep"></span>
+  <button id="t-zoom-in" type="button" title="Zoom in">＋</button>
+  <button id="t-zoom-out" type="button" title="Zoom out">－</button>
+  <button id="t-fit" type="button" title="Fit to screen (0)">⤢ Fit</button>
+  <span class="sep"></span>
+  <select id="t-layout" title="Layout" aria-label="Layout">
+    <option value="force">Force layout</option>
+    <option value="hierarchical">Hierarchy</option>
+    <option value="circular">Circle</option>
+    <option value="grid">Grid</option>
+  </select>
+  <button id="t-labels" type="button" title="Show every label (L)" aria-pressed="false">Aa Labels</button>
+  <button id="t-reset" type="button" title="Show the whole graph (Esc)">⟲ Reset</button>
+  <span class="sep"></span>
+  <button id="t-theme" type="button" title="Light / dark (T)">Theme</button>
+  <button id="t-png" type="button" title="Save as PNG">⬇ PNG</button>
+</div>
+
+<div id="tip" class="glass"></div>
+<div id="loader"><div><div class="ring" style="margin:auto"></div><p id="loader-text">Laying out the graph…</p></div></div>
+<div id="error"><div class="glass"><h2>The graph viewer could not load</h2><p id="error-text"></p></div></div>
+
+<script id="cgr-data" type="application/json">__CGR_GRAPH_DATA__</script>
+<script src="__CGR_ORB_URL__" integrity="__CGR_ORB_SRI__" crossorigin="anonymous"></script>
+<script>
+(function () {
+  'use strict';
+  const $ = (id) => document.getElementById(id);
+  const DATA = JSON.parse($('cgr-data').textContent);
+
+  if (typeof window.Orb === 'undefined') {
+    $('loader').classList.add('done');
+    $('error-text').textContent = 'The Orb graph library did not load. The viewer fetches it from ' +
+      '__CGR_ORB_URL__, so open this file with internet access (your graph data stays in this file).';
+    $('error').classList.add('show');
+    return;
+  }
+
+  // Vivid, distinct colours per node label; anything unknown takes one from the cycle.
+  const NODE_COLORS = {
+    Project: '#ffd166', Package: '#c77dff', Folder: '#94a3b8', File: '#4cc9f0', Module: '#3a86ff',
+    Class: '#ff4d9d', Interface: '#ff9f1c', Enum: '#f15bb5', Type: '#fb8500', Union: '#ffb703',
+    Function: '#06d6a0', Method: '#a3e635', Parameter: '#64748b', Field: '#2dd4bf', EnumVariant: '#f9a8d4',
+    ExternalPackage: '#8d99ae', ExternalModule: '#7b8794', Resource: '#e76f51', Section: '#b8c0ff',
+    Pattern: '#9b5de5', CodeSmell: '#fee440', SecurityIssue: '#ef233c', Gloss: '#00f5d4',
+    ModuleInterface: '#4895ef', ModuleImplementation: '#4361ee',
+  };
+  const CYCLE = ['#00bbf9', '#f15bb5', '#fee440', '#00f5d4', '#9b5de5', '#ff6b6b', '#4ade80', '#fb923c'];
+  const BASE_SIZE = { Project: 16, Package: 11, Folder: 8, File: 6.5, Module: 6.5, Class: 6.5, Interface: 6.5, Enum: 5.5,
+    ExternalPackage: 4.5, ExternalModule: 4 };
+  const EDGE_COLORS = {
+    CALLS: '#22d3ee', IMPORTS: '#7c5cff', INHERITS: '#ff4d9d', IMPLEMENTS: '#ff9f1c', OVERRIDES: '#f15bb5',
+    DEFINES: '#06d6a0', DEFINES_METHOD: '#a3e635', INSTANTIATES: '#ffd166', REFERENCES: '#4cc9f0',
+    RETURNS: '#fb8500', ACCEPTS: '#94a3b8',
+  };
+  const STRUCTURAL = /^CONTAINS/;
+  const colorCache = {};
+  let cycleAt = 0;
+  function nodeColor(label) {
+    if (NODE_COLORS[label]) return NODE_COLORS[label];
+    if (!colorCache[label]) colorCache[label] = CYCLE[cycleAt++ % CYCLE.length];
+    return colorCache[label];
+  }
+  function edgeColor(type) {
+    if (EDGE_COLORS[type]) return EDGE_COLORS[type];
+    if (STRUCTURAL.test(type)) return '#64748b';
+    return nodeColor('rel:' + type);
+  }
+  function hexAlpha(hex, a) {
+    const n = parseInt(hex.slice(1), 16);
+    return 'rgba(' + (n >> 16 & 255) + ',' + (n >> 8 & 255) + ',' + (n & 255) + ',' + a + ')';
+  }
+  const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+
+  // ---- Data ----
+  const nodes = DATA.nodes.map((n) => ({ id: n.id, label: n.label, name: n.name || n.qn || String(n.id), qn: n.qn || '',
+    path: n.path || '', start: n.start, end: n.end, doc: n.doc || '', degree: 0 }));
+  const byId = new Map(nodes.map((n) => [n.id, n]));
+  const edges = [];
+  DATA.edges.forEach((e, i) => {
+    const s = byId.get(e.s), t = byId.get(e.t);
+    if (!s || !t) return;
+    s.degree++; t.degree++;
+    edges.push({ id: i, start: e.s, end: e.t, type: e.k });
+  });
+  const adjacency = new Map(nodes.map((n) => [n.id, []]));
+  edges.forEach((e) => { adjacency.get(e.start).push(e); if (e.start !== e.end) adjacency.get(e.end).push(e); });
+
+  const countBy = (arr, key) => arr.reduce((m, x) => m.set(x[key], (m.get(x[key]) || 0) + 1), new Map());
+  const nodeTypeCounts = [...countBy(nodes, 'label')].sort((a, b) => b[1] - a[1]);
+  const edgeTypeCounts = [...countBy(edges, 'type')].sort((a, b) => b[1] - a[1]);
+
+  // Labels are drawn only for the most connected nodes until the user asks for all.
+  const labelled = new Set([...nodes].sort((a, b) => b.degree - a.degree).slice(0, 40).map((n) => n.id));
+  nodes.forEach((n) => { if ((BASE_SIZE[n.label] || 0) >= 12) labelled.add(n.id); });
+
+  const state = {
+    hiddenLabels: new Set(), hiddenEdges: new Set(), focus: null, isolate: null,
+    allLabels: false, selected: null,
+  };
+
+  // ---- Header ----
+  $('title').textContent = DATA.title;
+  document.title = DATA.title + ' · code graph';
+  const meta = DATA.meta || {};
+  $('subtitle').textContent = meta.exported_at ? 'exported ' + String(meta.exported_at).slice(0, 16).replace('T', ' ') + ' UTC' : 'code graph';
+  const fmt = (x) => Number(x).toLocaleString();
+  $('stats').innerHTML = '';
+  [[nodes.length, 'nodes'], [edges.length, 'edges'], [nodeTypeCounts.length, 'types']].forEach(([v, k]) => {
+    const el = document.createElement('div'); el.className = 'stat';
+    const b = document.createElement('b'); b.textContent = fmt(v);
+    const s = document.createElement('span'); s.textContent = k;
+    el.append(b, s); $('stats').append(el);
+  });
+  if (meta.truncated) {
+    const banner = $('banner');
+    banner.textContent = 'Showing the ' + fmt(meta.shown_nodes) + ' most connected of ' + fmt(meta.total_nodes) +
+      ' nodes. Export one project with --project for the full picture.';
+    banner.classList.add('show');
+    setTimeout(() => banner.classList.remove('show'), 9000);
+  }
+
+  // ---- Orb ----
+  // Tighter than Orb's defaults: code graphs are large and hub-heavy, and the
+  // default spacing fits them at a zoom where nodes shrink to specks.
+  const FORCE = {
+    collision: { radius: 9, strength: 0.8, iterations: 1 },
+    links: { distance: 30, strength: 0.5, iterations: 1 },
+    manyBody: { strength: -60, theta: 0.9, distanceMin: 1, distanceMax: 300 },
+    positioning: { forceX: { x: 0, strength: 0.18 }, forceY: { y: 0, strength: 0.18 } },
+  };
+  const orb = new Orb.OrbView($('graph'), {
+    getPosition: (node) => positions.get(node.id),
+    render: { backgroundColor: null, labelsIsEnabled: true, labelsOnEventIsEnabled: true, shadowIsEnabled: true,
+      shadowOnEventIsEnabled: true, contextAlphaOnEvent: 0.25, contextAlphaOnEventIsEnabled: true, minZoom: 0.02, maxZoom: 4 },
+    strategy: { isDefaultSelectEnabled: false, isDefaultHoverEnabled: true },
+    layout: { type: 'force', options: FORCE },
+    zoomFitTransitionMs: 400,
+  });
+  const positions = new Map();
+
+  function neighbourhood(id, depth) {
+    const seen = new Set([id]); let frontier = [id];
+    for (let d = 0; d < depth; d++) {
+      const next = [];
+      frontier.forEach((nid) => adjacency.get(nid).forEach((e) => {
+        if (state.hiddenEdges.has(e.type)) return;
+        const other = e.start === nid ? e.end : e.start;
+        if (!seen.has(other)) { seen.add(other); next.push(other); }
+      }));
+      frontier = next;
+    }
+    return seen;
+  }
+
+  function buildStyle() {
+    const labelColor = css('--label'), labelBg = css('--label-bg'), faded = css('--faded'), edgeFaded = css('--edge-faded');
+    const focus = state.focus;
+    return {
+      getNodeStyle(node) {
+        const n = node.getData();
+        const c = nodeColor(n.label);
+        const dim = focus && !focus.has(n.id);
+        const size = (BASE_SIZE[n.label] || 3.5) + Math.min(9, Math.sqrt(n.degree) * 0.8);
+        const lit = !dim && (labelled.has(n.id) || state.selected === n.id || (focus && focus.has(n.id)));
+        const showLabel = !dim && (state.allLabels || labelled.has(n.id) || (focus && focus.has(n.id)) || state.selected === n.id);
+        return {
+          size, color: dim ? faded : c, colorHover: c, colorSelected: c,
+          borderColor: lit ? '#ffffff' : hexAlpha(c, 0.55), borderWidth: dim ? 0 : (lit ? 1 : 0.6), borderWidthSelected: 2.5,
+          borderColorSelected: '#ffffff', borderColorHover: '#ffffff',
+          // Canvas blur is the costliest thing Orb draws, so only nodes worth finding glow.
+          shadowColor: lit ? c : 'transparent', shadowSize: lit ? (state.selected === n.id ? 26 : 12) : 0,
+          label: showLabel ? n.name : undefined, fontColor: labelColor, fontBackgroundColor: labelBg,
+          fontSize: size > 10 ? 6 : 4.5, fontFamily: 'Inter, system-ui, sans-serif',
+          zIndex: dim ? 0 : (state.selected === n.id ? 10 : 2),
+        };
+      },
+      getEdgeStyle(edge) {
+        const e = edge.getData();
+        const c = edgeColor(e.type);
+        const touches = focus && focus.has(e.start) && focus.has(e.end);
+        const dim = focus && !touches;
+        const structural = STRUCTURAL.test(e.type);
+        return {
+          color: dim ? edgeFaded : hexAlpha(c, focus ? 0.9 : (structural ? 0.16 : 0.2)),
+          colorHover: c, colorSelected: c,
+          width: focus && touches ? 0.9 : 0.3, widthHover: 1.4, widthSelected: 1.4,
+          arrowSize: focus && touches ? 0.8 : 0.35, zIndex: dim ? 0 : 1,
+        };
+      },
+    };
+  }
+  // Orb's setDefaultStyle only styles objects that have no style yet, so a
+  // change of focus, theme or labels sets every object's style again.
+  function applyStyles() {
+    const style = buildStyle();
+    orb.data.setDefaultStyle(style);
+    orb.data.getNodes().forEach((n) => n.setStyle(style.getNodeStyle(n), { isNotifySkipped: true }));
+    orb.data.getEdges().forEach((e) => e.setStyle(style.getEdgeStyle(e), { isNotifySkipped: true }));
+  }
+  function restyle() { applyStyles(); orb.render(); }
+
+  function visibleData() {
+    const keep = (n) => !state.hiddenLabels.has(n.label) && (!state.isolate || state.isolate.has(n.id));
+    const vn = nodes.filter(keep);
+    const ids = new Set(vn.map((n) => n.id));
+    const ve = edges.filter((e) => !state.hiddenEdges.has(e.type) && ids.has(e.start) && ids.has(e.end));
+    return { nodes: vn, edges: ve };
+  }
+
+  let firstRender = true;
+  let recenterAfterLayout = true;
+  // A neighbourhood gets a fresh layout of its own; the whole graph's layout
+  // is kept aside and comes back when the neighbourhood is left.
+  let wholeGraphPositions = null, laidOutIsolate = null;
+  function rebuild(recenter) {
+    if (recenter) recenterAfterLayout = true;
+    orb.data.getNodePositions().forEach((p) => { if (p.x != null) positions.set(p.id, { x: p.x, y: p.y }); });
+    if (state.isolate && state.isolate !== laidOutIsolate) {
+      if (!wholeGraphPositions) wholeGraphPositions = new Map(positions);
+      state.isolate.forEach((id) => positions.delete(id));
+    } else if (!state.isolate && wholeGraphPositions) {
+      wholeGraphPositions.forEach((p, id) => positions.set(id, p));
+      wholeGraphPositions = null;
+    }
+    laidOutIsolate = state.isolate;
+    orb.data.setup(visibleData());
+    applyStyles();
+    orb.render(() => {
+      if (recenter || firstRender) orb.recenter();
+      if (firstRender) { firstRender = false; $('loader').classList.add('done'); }
+    });
+  }
+  orb.events.on(Orb.OrbEventType.SIMULATION_STEP, (e) => {
+    $('loader-text').textContent = 'Laying out the graph… ' + Math.round((e.progress || 0) * 100) + '%';
+  });
+  orb.events.on(Orb.OrbEventType.SIMULATION_END, () => {
+    if (recenterAfterLayout) { recenterAfterLayout = false; orb.recenter(); }
+    $('loader').classList.add('done');
+  });
+
+  // ---- Filters ----
+  function toggleRow(container, key, count, colorFor, kind, hiddenSet) {
+    const row = document.createElement('div');
+    row.className = 'toggle'; row.setAttribute('role', 'checkbox'); row.tabIndex = 0;
+    row.style.setProperty('--c', colorFor(key));
+    const sw = document.createElement('span'); sw.className = kind;
+    const lbl = document.createElement('span'); lbl.className = 'lbl'; lbl.textContent = key;
+    const cnt = document.createElement('span'); cnt.className = 'count'; cnt.textContent = fmt(count);
+    row.append(sw, lbl, cnt);
+    const sync = () => { row.classList.toggle('off', hiddenSet.has(key)); row.setAttribute('aria-checked', String(!hiddenSet.has(key))); };
+    const flip = (solo) => {
+      if (solo) {
+        const keys = [...container.children].map((r) => r.dataset.key);
+        const onlyThis = keys.every((k) => k === key ? !hiddenSet.has(k) : hiddenSet.has(k));
+        keys.forEach((k) => (onlyThis || k === key) ? hiddenSet.delete(k) : hiddenSet.add(k));
+        [...container.children].forEach((r) => r._sync());
+      } else {
+        hiddenSet.has(key) ? hiddenSet.delete(key) : hiddenSet.add(key); sync();
+      }
+      rebuild(true);
+    };
+    row.dataset.key = key; row._sync = sync;
+    row.title = 'Click to toggle, Alt-click to show only ' + key;
+    row.addEventListener('click', (ev) => flip(ev.altKey));
+    row.addEventListener('keydown', (ev) => { if (ev.key === ' ' || ev.key === 'Enter') { ev.preventDefault(); flip(ev.altKey); } });
+    sync();
+    container.append(row);
+  }
+  nodeTypeCounts.forEach(([k, c]) => toggleRow($('node-types'), k, c, nodeColor, 'swatch', state.hiddenLabels));
+  edgeTypeCounts.forEach(([k, c]) => toggleRow($('edge-types'), k, c, edgeColor, 'line', state.hiddenEdges));
+  $('nodes-all').onclick = () => { state.hiddenLabels.clear(); [...$('node-types').children].forEach((r) => r._sync()); rebuild(true); };
+  $('edges-all').onclick = () => { state.hiddenEdges.clear(); [...$('edge-types').children].forEach((r) => r._sync()); rebuild(true); };
+
+  // ---- Selection & details ----
+  function select(id, opts) {
+    const n = byId.get(id);
+    if (!n) return;
+    if (state.hiddenLabels.has(n.label)) { state.hiddenLabels.delete(n.label); [...$('node-types').children].forEach((r) => r._sync()); }
+    if (state.isolate && !state.isolate.has(id)) state.isolate = null;
+    state.selected = id;
+    state.focus = neighbourhood(id, 1);
+    if (opts && opts.isolate) state.isolate = state.focus;
+    rebuild(Boolean(opts && opts.isolate));
+    showDetails(n);
+  }
+  function clearSelection() {
+    state.selected = null; state.focus = null;
+    const wasIsolated = Boolean(state.isolate); state.isolate = null;
+    $('details').classList.remove('open');
+    if (wasIsolated) rebuild(true); else restyle();
+  }
+
+  function showDetails(n) {
+    const c = nodeColor(n.label);
+    const badge = $('d-badge'); badge.textContent = n.label; badge.style.setProperty('--c', c);
+    $('d-name').textContent = n.name;
+    $('d-qn').textContent = n.qn && n.qn !== n.name ? n.qn : '';
+    const loc = n.path ? n.path + (n.start != null ? ':' + n.start + (n.end != null && n.end !== n.start ? '–' + n.end : '') : '') : '';
+    $('d-loc').textContent = loc;
+    $('d-doc').textContent = n.doc; $('d-doc').style.display = n.doc ? '' : 'none';
+    const groups = new Map();
+    adjacency.get(n.id).forEach((e) => {
+      const out = e.start === n.id;
+      const key = (out ? e.type + ' →' : '← ' + e.type);
+      if (!groups.has(key)) groups.set(key, { type: e.type, items: [], seen: new Set() });
+      const g = groups.get(key), other = out ? e.end : e.start;
+      if (!g.seen.has(other)) { g.seen.add(other); g.items.push(byId.get(other)); }
+    });
+    const rels = $('d-rels'); rels.innerHTML = '';
+    if (!groups.size) { const p = document.createElement('div'); p.className = 'empty'; p.textContent = 'No relationships.'; rels.append(p); }
+    [...groups].sort((a, b) => b[1].items.length - a[1].items.length).forEach(([key, g]) => {
+      const box = document.createElement('div'); box.className = 'rel-group';
+      const h = document.createElement('h3'); h.style.setProperty('--c', edgeColor(g.type));
+      const ln = document.createElement('span'); ln.className = 'line';
+      h.append(ln, document.createTextNode(key + ' · ' + g.items.length));
+      box.append(h);
+      const LIMIT = 40;
+      g.items.slice().sort((a, b) => b.degree - a.degree).slice(0, LIMIT).forEach((m) => {
+        const row = document.createElement('div'); row.className = 'nb'; row.style.setProperty('--c', nodeColor(m.label));
+        row.title = m.qn || m.name;
+        const dot = document.createElement('span'); dot.className = 'dot';
+        const nm = document.createElement('span'); nm.className = 'n'; nm.textContent = m.name;
+        row.append(dot, nm);
+        row.onclick = () => select(m.id);
+        box.append(row);
+      });
+      if (g.items.length > LIMIT) { const more = document.createElement('div'); more.className = 'more'; more.textContent = '+ ' + (g.items.length - LIMIT) + ' more'; box.append(more); }
+      rels.append(box);
+    });
+    $('details').classList.add('open');
+  }
+  $('d-close').onclick = clearSelection;
+  $('d-focus').onclick = () => { if (state.selected != null) select(state.selected, { isolate: true }); };
+  $('d-copy').onclick = () => {
+    const n = byId.get(state.selected); if (!n) return;
+    const text = n.qn || n.name;
+    (navigator.clipboard ? navigator.clipboard.writeText(text) : Promise.reject()).then(
+      () => { $('d-copy').textContent = 'Copied'; setTimeout(() => { $('d-copy').textContent = 'Copy name'; }, 1200); }, () => {});
+  };
+
+  orb.events.on(Orb.OrbEventType.NODE_CLICK, (e) => select(e.node.getData().id));
+  orb.events.on(Orb.OrbEventType.NODE_DOUBLE_CLICK, (e) => select(e.node.getData().id, { isolate: true }));
+  orb.events.on(Orb.OrbEventType.MOUSE_CLICK, (e) => { if (!e.subject && state.selected != null && !state.isolate) clearSelection(); });
+
+  // Hover card
+  const tip = $('tip');
+  orb.events.on(Orb.OrbEventType.MOUSE_MOVE, (e) => {
+    const s = e.subject;
+    if (!s || !s.getData || s.getData().label === undefined) { tip.style.display = 'none'; return; }
+    const n = s.getData();
+    tip.innerHTML = '';
+    const a = document.createElement('div'); a.className = 't-name'; a.textContent = n.name;
+    const b = document.createElement('div'); b.className = 't-qn mono'; b.textContent = n.label + (n.qn && n.qn !== n.name ? ' · ' + n.qn : '');
+    tip.append(a, b);
+    tip.style.display = 'block';
+    const ev = e.event;
+    tip.style.left = Math.min(window.innerWidth - 370, ev.clientX + 14) + 'px';
+    tip.style.top = (ev.clientY + 16) + 'px';
+  });
+  $('graph').addEventListener('mouseleave', () => { tip.style.display = 'none'; });
+
+  // ---- Search ----
+  const searchIndex = nodes.map((n) => ({ n, name: n.name.toLowerCase(), qn: n.qn.toLowerCase() }));
+  let active = -1, hits = [];
+  function runSearch(q) {
+    q = q.trim().toLowerCase();
+    const box = $('results');
+    if (!q) { box.classList.remove('open'); return; }
+    hits = searchIndex.map((x) => {
+      let score = -1;
+      if (x.name === q) score = 0; else if (x.name.startsWith(q)) score = 1; else if (x.name.includes(q)) score = 2; else if (x.qn.includes(q)) score = 3;
+      return { x, score };
+    }).filter((h) => h.score >= 0).sort((a, b) => a.score - b.score || b.x.n.degree - a.x.n.degree).slice(0, 14).map((h) => h.x.n);
+    box.innerHTML = '';
+    if (!hits.length) { const p = document.createElement('div'); p.className = 'empty'; p.textContent = 'Nothing matches “' + q + '”.'; box.append(p); }
+    hits.forEach((n, i) => {
+      const row = document.createElement('div'); row.className = 'result'; row.setAttribute('role', 'option');
+      const badge = document.createElement('span'); badge.className = 'badge'; badge.style.setProperty('--c', nodeColor(n.label)); badge.textContent = n.label;
+      const nm = document.createElement('span'); nm.className = 'name'; nm.textContent = n.name;
+      const qn = document.createElement('span'); qn.className = 'qn mono'; qn.textContent = n.qn;
+      row.append(badge, nm, qn);
+      row.onmousedown = (ev) => { ev.preventDefault(); pick(i); };
+      box.append(row);
+    });
+    active = hits.length ? 0 : -1; paintActive();
+    box.classList.add('open');
+  }
+  function paintActive() { [...$('results').children].forEach((r, i) => r.classList.toggle('active', i === active)); }
+  function pick(i) { const n = hits[i]; if (!n) return; $('results').classList.remove('open'); $('search').blur(); select(n.id, { isolate: true }); }
+  $('search').addEventListener('input', (e) => runSearch(e.target.value));
+  $('search').addEventListener('focus', (e) => { if (e.target.value) runSearch(e.target.value); });
+  $('search').addEventListener('blur', () => setTimeout(() => $('results').classList.remove('open'), 120));
+  $('search').addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowDown') { active = Math.min(hits.length - 1, active + 1); paintActive(); e.preventDefault(); }
+    else if (e.key === 'ArrowUp') { active = Math.max(0, active - 1); paintActive(); e.preventDefault(); }
+    else if (e.key === 'Enter') { pick(active); }
+    else if (e.key === 'Escape') { e.target.value = ''; $('results').classList.remove('open'); e.target.blur(); }
+  });
+
+  // ---- Toolbar ----
+  const legendBtn = $('t-legend');
+  function toggleLegend() { const c = $('legend').classList.toggle('collapsed'); legendBtn.setAttribute('aria-pressed', String(!c)); }
+  legendBtn.onclick = toggleLegend;
+  $('t-zoom-in').onclick = () => orb.zoomIn();
+  $('t-zoom-out').onclick = () => orb.zoomOut();
+  $('t-fit').onclick = () => orb.recenter();
+  $('t-layout').onchange = (e) => {
+    positions.clear();
+    const type = e.target.value;
+    orb.setSettings({ layout: type === 'force' ? { type, options: FORCE } : { type } });
+    orb.render(() => orb.recenter());
+  };
+  function toggleLabels() { state.allLabels = !state.allLabels; $('t-labels').setAttribute('aria-pressed', String(state.allLabels)); restyle(); }
+  $('t-labels').onclick = toggleLabels;
+  $('t-reset').onclick = () => {
+    state.hiddenLabels.clear(); state.hiddenEdges.clear();
+    [...$('node-types').children, ...$('edge-types').children].forEach((r) => r._sync());
+    clearSelection(); rebuild(true);
+  };
+  const THEME_KEY = 'cgr-graph-theme';
+  function setTheme(t) {
+    document.documentElement.setAttribute('data-theme', t);
+    try { localStorage.setItem(THEME_KEY, t); } catch (e) { /* storage may be blocked for file:// pages */ }
+    restyle();
+  }
+  try { const saved = localStorage.getItem(THEME_KEY); if (saved === 'light' || saved === 'dark') document.documentElement.setAttribute('data-theme', saved); } catch (e) { /* ignore */ }
+  $('t-theme').onclick = () => setTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
+  $('t-png').onclick = () => {
+    const src = orb.canvas;
+    const out = document.createElement('canvas'); out.width = src.width; out.height = src.height;
+    const ctx = out.getContext('2d'); ctx.fillStyle = css('--bg'); ctx.fillRect(0, 0, out.width, out.height); ctx.drawImage(src, 0, 0);
+    const a = document.createElement('a'); a.download = (DATA.title || 'graph').replace(/[^\w.-]+/g, '_') + '.png';
+    a.href = out.toDataURL('image/png'); a.click();
+  };
+
+  document.addEventListener('keydown', (e) => {
+    if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement) return;
+    if (e.key === '/') { e.preventDefault(); $('search').focus(); }
+    else if (e.key === 'Escape') clearSelection();
+    else if (e.key === 'l' || e.key === 'L') toggleLabels();
+    else if (e.key === 'f' || e.key === 'F') toggleLegend();
+    else if (e.key === 't' || e.key === 'T') $('t-theme').click();
+    else if (e.key === '0') orb.recenter();
+  });
+
+  rebuild(true);
+})();
+</script>
+</body>
+</html>

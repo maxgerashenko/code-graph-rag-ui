@@ -37,3 +37,4 @@ from .sqlite_vectors import *  # noqa: F403
 from .stdlib_types import *  # noqa: F403
 from .structural import *  # noqa: F403
 from .trace import *  # noqa: F403
+from .viewer import *  # noqa: F403

@@ -128,6 +128,8 @@ codebase_rag = [
     # only from this fallback file; without it the wheel silently disables
     # Julia modifier/decorator extraction (issue #1882 review).
     "queries/highlights/*.scm",
+    # The page `cgr export -o graph.html` writes.
+    "viewer/*.html",
 ]
 # The provenance manifest hashes this file to stamp each index with its codec
 # schema; without it every installed build writes a null hash and

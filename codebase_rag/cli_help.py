@@ -47,7 +47,7 @@ PANEL_HELP = "Help"
 CMD_START = "Open the code assistant for a repository or workspace"
 CMD_INDEX = "Write an offline protobuf index for a repository"
 CMD_WATCH = "Keep a repository's graph in sync while you edit it"
-CMD_EXPORT = "Export the shared graph, or chosen projects, to JSON"
+CMD_EXPORT = "Export the shared graph, or chosen projects, to JSON or an HTML graph view"
 CMD_OPTIMIZE = "Run a language-focused code optimisation session"
 CMD_MCP_SERVER = "Serve cgr tools over stdio or HTTP"
 CMD_GRAPH_LOADER = "Summarise an exported graph JSON file"
@@ -296,6 +296,7 @@ EXAMPLES_WATCH = (
 EXAMPLES_EXPORT = (
     "EXAMPLES\n\n"
     "  cgr export -o graph.json\n\n"
+    "  cgr export -o graph.html --repo-path .\n\n"
     "  cgr export -o my-project.json --project my-project\n\n"
     "  cgr export -o this-repo.json --repo-path .\n\n"
     "  cgr export -o shop.json --workspace shop"
@@ -556,7 +557,10 @@ HELP_OUTPUT_GRAPH = (
     "Write this repository's project graph to PATH as JSON. Requires "
     "--update-graph. Use cgr export for the whole shared graph."
 )
-HELP_OUTPUT_PATH = "Write the exported graph to PATH."
+HELP_OUTPUT_PATH = (
+    "Write the exported graph to PATH: JSON, or an interactive graph page "
+    "when PATH ends in .html."
+)
 HELP_EXPORT_PROJECT = (
     "Export only this project: what it owns, the relationships that start "
     "there, the nodes they reach, and the links between the resources it "
