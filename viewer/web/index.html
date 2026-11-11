@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>prototypeRAG code graph</title>
+<link rel="stylesheet" href="style.css" />
+<script src="https://unpkg.com/@memgraph/orb@1.1.0/dist/browser/orb.min.js"
+  integrity="sha384-P2jpPR0PRaYiw2OqRETE4Fo0WQpItZyXSTy88EeFZHB0mXtoDAWt8FcZVEd8dDLM"
+  crossorigin="anonymous"></script>
+</head>
+<body>
+  <header>
+    <div id="brand" class="glass">
+      <div class="logo" aria-hidden="true"></div>
+      <h1>prototypeRAG code graph</h1>
+    </div>
+    <div id="search-box" class="glass">
+      <input id="search" type="search" placeholder="search qualified name…" autocomplete="off" />
+      <kbd>/</kbd>
+      <div id="search-results" class="list"></div>
+    </div>
+    <div id="stats" class="glass"></div>
+    <div id="view-switch" class="glass">
+      <div class="switch-thumb"></div>
+      <button id="view-live" type="button" class="active" title="Function-level call graph, with search, Louvain clusters, dead-code &amp; duplicate overlays">COMMUNITIES</button>
+      <button id="view-static" type="button" title="Full code graph export: files, folders, classes, imports — every node &amp; relationship type">ALL NODES</button>
+    </div>
+  </header>
+  <div id="layout">
+    <main id="graph-container"></main>
+    <aside id="sidebar" class="glass">
+      <section class="grow-2">
+        <h2>Communities</h2>
+        <div id="communities" class="list"></div>
+      </section>
+      <div class="divider"></div>
+      <section class="grow-1">
+        <h2>Issues</h2>
+        <div id="issues" class="list"></div>
+      </section>
+    </aside>
+    <aside id="detail" class="glass hidden">
+      <div class="d-header">
+        <button id="d-close" type="button" class="close" title="Close" aria-label="Close">✕</button>
+        <div id="detail-header"></div>
+      </div>
+      <div id="detail-content" class="scroll section"></div>
+    </aside>
+    <div id="toolbar" class="glass" role="toolbar" aria-label="View controls">
+      <button id="t-panels" type="button" aria-pressed="true" title="Toggle panels (F)">☰ Panels</button>
+      <span class="sep"></span>
+      <button id="t-zoom-in" type="button" title="Zoom in">＋</button>
+      <button id="t-zoom-out" type="button" title="Zoom out">－</button>
+      <button id="t-fit" type="button" title="Fit to screen">⤢ Fit</button>
+      <span class="sep"></span>
+      <label class="inline"><input id="show-heuristic" type="checkbox" /> heuristic edges</label>
+      <label class="inline">min PageRank
+        <input id="min-pagerank" type="range" min="0" max="0.02" step="0.0005" value="0" />
+        <span id="min-pagerank-value">0.0000</span>
+      </label>
+      <label class="inline">max nodes
+        <input id="limit" type="number" min="50" max="5000" step="50" value="800" />
+      </label>
+      <button id="apply" type="button">Apply</button>
+      <span class="sep"></span>
+      <button id="t-reset" type="button" title="Reset filters">⟲ Reset</button>
+    </div>
+  </div>
+  <iframe id="static-view" class="hidden" title="Static Orb export"></iframe>
+  <script type="module" src="app.js"></script>
+</body>
+</html>

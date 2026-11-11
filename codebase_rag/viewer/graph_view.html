@@ -72,8 +72,10 @@
   /* Left: legend */
   #legend { position: fixed; top: 76px; left: 14px; bottom: 14px; width: 248px; display: flex; flex-direction: column; overflow: hidden; z-index: 4; transition: transform .25s ease; }
   #legend.collapsed { transform: translateX(calc(-100% - 20px)); }
+  body.hide-panels #topbar, body.hide-panels #toolbar, body.hide-panels #details { display: none; }
   .section { padding: 12px 14px 6px; }
   .section h2 { font-size: 10.5px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; color: var(--text-3); display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+  .section h2 .h2-actions { display: flex; gap: 8px; }
   .section h2 button { background: none; border: 0; color: var(--accent-2); font-size: 10.5px; letter-spacing: .04em; text-transform: none; font-weight: 600; }
   .scroll { overflow-y: auto; flex: 1; padding-bottom: 8px; }
   .toggle { display: flex; align-items: center; gap: 9px; padding: 5px 8px; margin: 0 -8px; border-radius: 8px; cursor: pointer; user-select: none; }
@@ -162,12 +164,12 @@
 <aside id="legend" class="glass" aria-label="Filters">
   <div class="scroll">
     <div class="section">
-      <h2>Node types <button id="nodes-all" type="button">show all</button></h2>
+      <h2>Node types <span class="h2-actions"><button id="nodes-all" type="button">show all</button><button id="nodes-none" type="button">hide all</button></span></h2>
       <div id="node-types"></div>
     </div>
     <div class="divider"></div>
     <div class="section">
-      <h2>Relationships <button id="edges-all" type="button">show all</button></h2>
+      <h2>Relationships <span class="h2-actions"><button id="edges-all" type="button">show all</button><button id="edges-none" type="button">hide all</button></span></h2>
       <div id="edge-types"></div>
     </div>
   </div>
@@ -466,11 +468,14 @@
   edgeTypeCounts.forEach(([k, c]) => toggleRow($('edge-types'), k, c, edgeColor, 'line', state.hiddenEdges));
   $('nodes-all').onclick = () => { state.hiddenLabels.clear(); [...$('node-types').children].forEach((r) => r._sync()); rebuild(true); };
   $('edges-all').onclick = () => { state.hiddenEdges.clear(); [...$('edge-types').children].forEach((r) => r._sync()); rebuild(true); };
+  $('nodes-none').onclick = () => { nodeTypeCounts.forEach(([k]) => state.hiddenLabels.add(k)); [...$('node-types').children].forEach((r) => r._sync()); rebuild(true); };
+  $('edges-none').onclick = () => { edgeTypeCounts.forEach(([k]) => state.hiddenEdges.add(k)); [...$('edge-types').children].forEach((r) => r._sync()); rebuild(true); };
 
   // ---- Selection & details ----
   function select(id, opts) {
     const n = byId.get(id);
     if (!n) return;
+    showAllPanels();
     if (state.hiddenLabels.has(n.label)) { state.hiddenLabels.delete(n.label); [...$('node-types').children].forEach((r) => r._sync()); }
     if (state.isolate && !state.isolate.has(id)) state.isolate = null;
     state.selected = id;
@@ -595,8 +600,17 @@
 
   // ---- Toolbar ----
   const legendBtn = $('t-legend');
-  function toggleLegend() { const c = $('legend').classList.toggle('collapsed'); legendBtn.setAttribute('aria-pressed', String(!c)); }
-  legendBtn.onclick = toggleLegend;
+  function toggleHideAll() {
+    const hidden = document.body.classList.toggle('hide-panels');
+    $('legend').classList.toggle('collapsed', hidden);
+    legendBtn.setAttribute('aria-pressed', String(!hidden));
+  }
+  function showAllPanels() {
+    document.body.classList.remove('hide-panels');
+    $('legend').classList.remove('collapsed');
+    legendBtn.setAttribute('aria-pressed', 'true');
+  }
+  legendBtn.onclick = toggleHideAll;
   $('t-zoom-in').onclick = () => orb.zoomIn();
   $('t-zoom-out').onclick = () => orb.zoomOut();
   $('t-fit').onclick = () => orb.recenter();
@@ -634,7 +648,7 @@
     if (e.key === '/') { e.preventDefault(); $('search').focus(); }
     else if (e.key === 'Escape') clearSelection();
     else if (e.key === 'l' || e.key === 'L') toggleLabels();
-    else if (e.key === 'f' || e.key === 'F') toggleLegend();
+    else if (e.key === 'f' || e.key === 'F') toggleHideAll();
     else if (e.key === 't' || e.key === 'T') $('t-theme').click();
     else if (e.key === '0') orb.recenter();
   });

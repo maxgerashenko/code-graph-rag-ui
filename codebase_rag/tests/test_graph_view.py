@@ -162,6 +162,11 @@ class TestPage:
         assert node["name"] == hostile
         assert node["doc"] == hostile
 
+    def test_each_filter_section_offers_show_all_and_hide_all(self) -> None:
+        page = render_graph_html(SAMPLE)
+        assert 'id="nodes-all"' in page and 'id="nodes-none"' in page
+        assert 'id="edges-all"' in page and 'id="edges-none"' in page
+
     def test_a_placeholder_spelled_in_the_graph_is_left_alone(self) -> None:
         graph = _graph([_node(1, "Function", name=cs.VIEWER_PLACEHOLDER_ORB_URL)], [])
         assert (
