@@ -49,6 +49,34 @@ an env var's `FLOWS_TO` into a URL, are added when both of their ends are in
 the file: export a client together with its server and the calls between
 them are kept. The file lists its projects under `metadata.projects`.
 
+## Interactive graph view
+
+Give `-o` a path ending in `.html` and `cgr export` writes one self-contained
+page that draws the graph instead of a JSON file:
+
+```bash
+cgr export -o graph.html --repo-path .
+```
+
+Open it in a browser; no server is needed. The page draws the graph with
+[Orb](https://github.com/memgraph/orb), the Apache-2.0 library behind
+Memgraph Lab, and offers:
+
+- a colour per node type, with node size growing with how connected it is;
+- search by name or qualified name (`/` focuses it), where picking a result
+  shows that node and its direct neighbours on their own;
+- filters for each node type and relationship type (Alt-click shows only one);
+- a details panel with the location, docstring and every relationship of the
+  selected node, grouped by type and direction;
+- force, hierarchy, circle and grid layouts, a light and a dark theme, and
+  PNG export.
+
+The graph stays inside the file. The page loads Orb itself from unpkg, pinned
+to one version and checked by its integrity hash, so it needs internet access
+the first time it opens. A graph of more than 5,000 nodes keeps its most
+connected 5,000 and says so; scope the export with `--project` to see a large
+graph whole.
+
 ## Working with Exported Data
 
 ```python

@@ -64,6 +64,7 @@ from .config import (
     settings,
 )
 from .context_pruning import describe_prune, prune_old_tool_results
+from .graph_view import is_viewer_output, render_graph_html
 from .models import AppContext
 from .prompts import OPTIMIZATION_PROMPT, OPTIMIZATION_PROMPT_WITH_REFERENCE
 from .providers.base import get_provider_from_config
@@ -1787,6 +1788,10 @@ def _write_graph_json(
 ) -> GraphData:
     graph_data: GraphData = ingestor.export_graph_to_dict(project_names)
     output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    if is_viewer_output(output_path):
+        output_path.write_text(render_graph_html(graph_data), encoding=cs.ENCODING_UTF8)
+        return graph_data
 
     with open(output_path, "w", encoding=cs.ENCODING_UTF8) as f:
         json.dump(graph_data, f, indent=cs.JSON_INDENT, ensure_ascii=False)

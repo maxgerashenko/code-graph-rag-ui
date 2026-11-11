@@ -34,7 +34,7 @@ Every top-level command, from the CLI's own help registry:
 | `cgr mcp-server` | Serve cgr tools over stdio or HTTP |
 | `cgr index` | Write an offline protobuf index for a repository |
 | `cgr watch` | Keep a repository's graph in sync while you edit it |
-| `cgr export` | Export the shared graph, or chosen projects, to JSON |
+| `cgr export` | Export the shared graph, or chosen projects, to JSON or an HTML graph view |
 | `cgr graph-loader` | Summarise an exported graph JSON file |
 | `cgr stats` | Show graph node and relationship counts |
 | `cgr dead-code` | Report code that appears unreachable from known entry points |
@@ -171,7 +171,7 @@ cgr export -o OUTPUT [OPTIONS]
 <!-- SECTION:cli_options_export -->
 | Option | Description |
 |------|-----------|
-| `--output`, `-o` | Write the exported graph to PATH. [required] |
+| `--output`, `-o` | Write the exported graph to PATH: JSON, or an interactive graph page when PATH ends in .html. [required] |
 | `--project`, `-p` | Export only this project: what it owns, the relationships that start there, the nodes they reach, and the links between the resources it holds (RESOLVES_TO, FLOWS_TO). Repeatable; without it the whole shared graph is exported. |
 | `--repo-path` | Export the project this repository was indexed as, alongside any --project. |
 | `--workspace` | Export only the projects defined in workspace NAME. |
