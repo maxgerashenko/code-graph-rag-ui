@@ -10,6 +10,7 @@ from __future__ import annotations
 import html
 import inspect
 import json
+import re
 from collections import Counter
 from collections.abc import Mapping, Sequence
 from pathlib import Path
@@ -18,6 +19,12 @@ from . import constants as cs
 from .types_defs import GraphData, PropertyValue
 
 _TEMPLATE_PATH = Path(__file__).parent / "viewer" / cs.VIEWER_TEMPLATE
+# A project derived from a checkout path ends in a digest of that path
+# (`shop__1a2b3c4d`); it keeps names unique, but a reader of the page only
+# needs `shop`.
+_PROJECT_DIGEST = re.compile(
+    rf"{re.escape(cs.PROJECT_NAME_DIGEST_MARKER)}[0-9a-f]{{{cs.PROJECT_NAME_DIGEST_LEN}}}$"
+)
 
 
 def is_viewer_output(output_path: Path) -> bool:
@@ -62,6 +69,8 @@ def _view_node(node: Mapping[str, object]) -> dict[str, object]:
     name = _text(properties, cs.KEY_NAME)
     qualified_name = _text(properties, cs.KEY_QUALIFIED_NAME)
     view[cs.VIEWER_KEY_NAME] = name or qualified_name or label
+    if label == cs.VIEWER_PROJECT_LABEL and name:
+        view[cs.VIEWER_KEY_NAME] = _PROJECT_DIGEST.sub("", name)
     if qualified_name:
         view[cs.VIEWER_KEY_QN] = qualified_name
     if path := _text(properties, cs.KEY_PATH):
@@ -138,7 +147,8 @@ def default_title(graph_data: GraphData) -> str:
             if _label(node) == cs.VIEWER_PROJECT_LABEL
             and (name := _text(_properties(node), cs.KEY_NAME))
         ]
-    return ", ".join(sorted(projects)) if projects else cs.VIEWER_DEFAULT_TITLE
+    names = dict.fromkeys(_PROJECT_DIGEST.sub("", name) for name in sorted(projects))
+    return ", ".join(names) if names else cs.VIEWER_DEFAULT_TITLE
 
 
 def render_graph_html(
