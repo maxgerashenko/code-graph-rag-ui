@@ -122,6 +122,18 @@ class TestTitle:
     def test_a_whole_graph_export_is_named_after_its_project_nodes(self) -> None:
         assert default_title(SAMPLE) == "shop"
 
+    def test_the_path_digest_is_left_out_of_the_title(self) -> None:
+        graph = _graph([], [], projects=["shop__1a2b3c4d", "api__0f0f0f0f"])
+        assert default_title(graph) == "api, shop"
+
+    def test_a_project_node_is_drawn_without_its_digest(self) -> None:
+        graph = _graph([_node(1, "Project", name="shop__1a2b3c4d")], [])
+        assert build_view_data(graph, "shop")["nodes"][0]["name"] == "shop"
+
+    def test_a_name_that_only_looks_like_a_digest_is_kept(self) -> None:
+        graph = _graph([], [], projects=["my__project"])
+        assert default_title(graph) == "my__project"
+
     def test_a_graph_without_projects_gets_a_generic_title(self) -> None:
         assert default_title(_graph([], [])) == cs.VIEWER_DEFAULT_TITLE
 
