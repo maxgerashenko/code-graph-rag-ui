@@ -25,6 +25,9 @@ function hexAlpha(hex, a) {
   return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
 }
 
+// iPad / phone: no hover, so taps take over what hovering does on a desktop.
+const isTouch = window.matchMedia("(hover: none) and (pointer: coarse)").matches;
+
 let orb = null;
 let nodesById = new Map();
 let adjacency = new Map();
@@ -32,6 +35,7 @@ let hoveredNode = null;
 const positions = new Map();
 let currentOrbNodes = [];
 let currentOrbEdges = [];
+let fitAfterLayout = false;
 
 function neighborsOf(id) {
   return new Set((adjacency.get(id) || []).map((e) => (e.start === id ? e.end : e.start)));
@@ -166,11 +170,31 @@ function renderGraph({ nodes, edges }) {
       },
       zoomFitTransitionMs: 400,
     });
-    orb.events.on(window.Orb.OrbEventType.NODE_CLICK, (e) => showDetail(e.node.getData().id));
+    orb.events.on(window.Orb.OrbEventType.NODE_CLICK, (e) => {
+      const id = e.node.getData().id;
+      // A tap has no hover, so on touch the click itself lights up the
+      // node's neighbourhood (showDetail re-renders with it).
+      if (isTouch) hoveredNode = id;
+      showDetail(id);
+    });
     orb.events.on(window.Orb.OrbEventType.MOUSE_CLICK, (e) => {
-      if (!e.subject) el("detail").classList.add("hidden");
+      if (e.subject) return;
+      el("detail").classList.add("hidden");
+      if (isTouch && hoveredNode) {
+        hoveredNode = null;
+        restyle();
+      }
+    });
+    // The first fit runs while the force layout is still a tight ball, which
+    // can leave the view zoomed all the way in (seen on iPad portrait); fit
+    // once more when the layout has settled.
+    orb.events.on(window.Orb.OrbEventType.SIMULATION_END, () => {
+      if (!fitAfterLayout) return;
+      fitAfterLayout = false;
+      orb.recenter();
     });
     orb.events.on(window.Orb.OrbEventType.MOUSE_MOVE, (e) => {
+      if (isTouch) return;
       const s = e.subject;
       const id = s && s.getData && s.getData().id !== undefined ? s.getData().id : null;
       if (id === hoveredNode) return;
@@ -179,6 +203,7 @@ function renderGraph({ nodes, edges }) {
     });
   }
 
+  fitAfterLayout = true;
   orb.data.setup({ nodes: orbNodes, edges: orbEdges });
   applyStyles();
   orb.render(() => orb.recenter());
@@ -278,13 +303,14 @@ async function loadStats() {
   const s = await api("/api/stats");
   const chips = [
     [s.functions, "functions"],
-    [s.call_edges, `call edges (${s.exact_edges} exact, ${s.heuristic_edges} heuristic)`],
+    [s.call_edges, `call edges<span class="more"> (${s.exact_edges} exact, ${s.heuristic_edges} heuristic)</span>`],
     [s.communities, "communities"],
     [s.modularity, "modularity"],
   ];
   el("stats").innerHTML = chips
     .map(([v, label]) => `<div class="stat"><b>${v}</b><span>${label}</span></div>`)
     .join("");
+  syncChromeSizes();
 }
 
 async function loadCommunities() {
@@ -351,15 +377,46 @@ el("min-pagerank").addEventListener("input", (e) => {
   el("min-pagerank-value").textContent = Number(e.target.value).toFixed(4);
 });
 
+function safeAreaBottom() {
+  const probe = document.createElement("div");
+  probe.style.cssText = "position:fixed;bottom:0;height:env(safe-area-inset-bottom,0px);visibility:hidden";
+  document.body.append(probe);
+  const h = probe.offsetHeight;
+  probe.remove();
+  return h;
+}
+
+// The ALL NODES page is the stock export, laid out for a full window. Push
+// its own top bar under ours, and on tablets its side panels under that bar
+// and clear of its bottom toolbar and the home indicator.
 function fixupEmbeddedTopbar() {
   const doc = el("static-view").contentDocument;
-  const style = doc.createElement("style");
+  if (!doc || !doc.head) return;
+  const top = document.querySelector("header").getBoundingClientRect().bottom + 12;
+  const bottom = safeAreaBottom();
+  let style = doc.getElementById("dashboard-fixup");
+  if (!style) {
+    style = doc.createElement("style");
+    style.id = "dashboard-fixup";
+    doc.head.append(style);
+  }
   style.textContent = `
     #topbar #brand { display: none; }
-    #topbar { top: 82px; }
-    #search-box { position: absolute; left: 50%; transform: translateX(-50%); margin: 0; flex: none; width: min(520px, 90vw); }
+    #topbar { top: ${top}px; }
+    #search-box { position: absolute; top: 0; left: 50%; transform: translateX(-50%); margin: 0; flex: none; width: min(520px, 90vw); }
+    #toolbar { bottom: ${14 + bottom}px; }
+    @media (max-width: 1180px) {
+      #legend, #details, #banner { top: ${top + 58}px; }
+      #legend, #details { bottom: ${84 + bottom}px; }
+    }
+    @media (max-width: 900px) {
+      #details { left: 14px; right: 14px; width: auto; top: auto; height: min(48dvh, 520px); z-index: 6; }
+    }
+    @media (pointer: coarse) {
+      #search-box kbd { display: none; }
+      #toolbar button, #toolbar select { min-height: 44px; min-width: 44px; }
+    }
   `;
-  doc.head.append(style);
 }
 
 function moveSwitchThumb() {
@@ -382,6 +439,21 @@ function showView(view) {
   moveSwitchThumb();
 }
 el("view-live").addEventListener("click", () => showView("live"));
+
+// Panels sit between the header and the toolbar, whose heights change when
+// they wrap (iPad portrait) or the device rotates. Synced by hand, not with a
+// ResizeObserver: one firing during Orb's first layout threw its
+// fit-to-screen all the way in on iPad portrait.
+function syncChromeSizes() {
+  const root = document.documentElement.style;
+  const header = document.querySelector("header");
+  if (!header.classList.contains("hidden")) root.setProperty("--header-h", `${header.offsetHeight}px`);
+  if (!el("toolbar").classList.contains("hidden")) root.setProperty("--toolbar-h", `${el("toolbar").offsetHeight}px`);
+  moveSwitchThumb();
+  if (el("static-view").src) fixupEmbeddedTopbar();
+}
+window.addEventListener("resize", syncChromeSizes);
+syncChromeSizes();
 el("view-static").addEventListener("click", () => showView("static"));
 moveSwitchThumb();
 
@@ -405,6 +477,7 @@ function toggleAllPanels() {
   const hidden = !panelEl("header").classList.contains("hidden");
   ["header", ...PANELS].forEach((id) => panelEl(id).classList.toggle("hidden", hidden));
   el("t-panels").setAttribute("aria-pressed", String(!hidden));
+  syncChromeSizes();
 }
 function showAllPanels() {
   ["header", ...PANELS].forEach((id) => panelEl(id).classList.remove("hidden"));

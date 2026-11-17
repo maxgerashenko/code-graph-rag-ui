@@ -56,6 +56,29 @@ export PROTOTYPE_RAG_PATH=/path/to/prototypeRAG
 
 Open http://localhost:8000.
 
+## Open it on an iPad (or any device on the same Wi-Fi)
+
+`./run.sh` listens on every network interface and prints two extra URLs:
+
+```
+== also reachable on your local network at http://192.168.1.191:8010 ==
+== or by name (survives IP changes) at http://Maxs-MacBook-Pro.local:8010 ==
+```
+
+`SKIP_INDEX=1 ./run.sh` serves what is already in `data/` without
+reindexing. Open either URL in Safari on the iPad, then tap Share, then
+**Add to Home Screen**. The icon opens the viewer full screen, without
+Safari's address bar, using the web app manifest in `web/`.
+
+The layout fits an iPad mini in both orientations: the header and toolbar
+wrap, the node details become a bottom sheet in portrait, and controls are
+finger-sized. On a touch screen, drag to pan, pinch to zoom, and tap a node
+to light up its neighbourhood (tap empty space to clear it).
+
+The Mac must stay awake and on the same network for the link to work. If the
+iPad cannot connect, check that macOS's firewall allows incoming connections
+for Python.
+
 ## Re-running after a fix
 
 ```bash

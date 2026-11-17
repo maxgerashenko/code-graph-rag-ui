@@ -8,6 +8,7 @@ analyze.py against your prototypeRAG checkout.
 from __future__ import annotations
 
 import json
+import mimetypes
 import os
 import subprocess
 import threading
@@ -42,6 +43,9 @@ SOURCE_ROOT = os.environ.get("PROTOTYPE_RAG_PATH")
 REPO_DIR = os.environ.get("VIEWER_REPO_DIR")
 WATCH_POLL_SECONDS = 5
 FUNCTION_LABELS = {"Function", "Method"}
+
+# Safari only reads the Home Screen manifest when it comes with this type.
+mimetypes.add_type("application/manifest+json", ".webmanifest")
 
 app = FastAPI(title="code graph viewer")
 
